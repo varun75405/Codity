@@ -31,18 +31,70 @@ export default function Jobs() {
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  const [showNewJobModal, setShowNewJobModal] = useState(false);
+  const [jobsData] = useState(allJobs);
 
-  const filtered = allJobs.filter(j =>
+  const handleCreateJob = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowNewJobModal(false);
+    // In a real app, this would call the API
+    alert("Job enqueued successfully!");
+  };
+
+  const filtered = jobsData.filter(j =>
     (selectedStatus === 'All' || j.status === selectedStatus) &&
     (searchTerm === '' || j.id.includes(searchTerm) || j.type.includes(searchTerm) || j.queue.includes(searchTerm))
   );
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Job Explorer</h1>
-        <p className="text-sm text-gray-500 mt-1">Browse, filter, and manage all jobs across your queues</p>
+    <div className="p-6 space-y-6 max-w-[1400px] mx-auto relative">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Job Explorer</h1>
+          <p className="text-sm text-gray-500 mt-1">Search, filter, and inspect individual job executions</p>
+        </div>
+        <button 
+          onClick={() => setShowNewJobModal(true)}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+        >
+          + Enqueue Job
+        </button>
       </div>
+
+      {showNewJobModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-[500px] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h2 className="font-semibold text-gray-900">Enqueue New Job</h2>
+              <button onClick={() => setShowNewJobModal(false)} className="text-gray-400 hover:text-gray-600">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateJob} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Queue</label>
+                <select className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                  <option>email-notifications</option>
+                  <option>image-processing</option>
+                  <option>report-generation</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+                <input type="text" placeholder="e.g., send_welcome_email" required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payload (JSON)</label>
+                <textarea rows={4} placeholder='{"user_id": 123}' className="w-full border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+              </div>
+              <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
+                <button type="button" onClick={() => setShowNewJobModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg border border-gray-200">Cancel</button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">Enqueue</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Filters Bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
