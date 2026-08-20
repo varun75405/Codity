@@ -78,6 +78,14 @@ export function Sidebar() {
 
 export function TopBar() {
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, message: 'worker-node-3 missed heartbeat', time: '2 mins ago', read: false },
+    { id: 2, message: 'job_5a2b8d moved to DLQ', time: '15 mins ago', read: false }
+  ]);
+
+  const markAllRead = () => {
+    setNotifications([]);
+  };
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 relative">
@@ -99,23 +107,29 @@ export function TopBar() {
           className="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 focus:outline-none"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+          {notifications.length > 0 && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+          )}
         </button>
         
         {showNotifications && (
           <div className="absolute top-14 right-6 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
             <div className="p-3 border-b border-gray-100 font-semibold text-sm">Alerts & Notifications</div>
-            <div className="p-3 hover:bg-gray-50 border-b border-gray-50 cursor-pointer">
-              <p className="text-sm text-gray-800"><strong>worker-node-3</strong> missed heartbeat</p>
-              <p className="text-xs text-gray-500 mt-1">2 mins ago</p>
-            </div>
-            <div className="p-3 hover:bg-gray-50 cursor-pointer">
-              <p className="text-sm text-gray-800"><strong>job_5a2b8d</strong> moved to DLQ</p>
-              <p className="text-xs text-gray-500 mt-1">15 mins ago</p>
-            </div>
-            <div className="p-2 border-t border-gray-100 text-center">
-              <button className="text-xs text-indigo-600 font-medium hover:underline">Mark all as read</button>
-            </div>
+            {notifications.length === 0 ? (
+              <div className="p-6 text-center text-sm text-gray-500">No new notifications</div>
+            ) : (
+              notifications.map(n => (
+                <div key={n.id} className="p-3 hover:bg-gray-50 border-b border-gray-50 cursor-pointer">
+                  <p className="text-sm text-gray-800" dangerouslySetInnerHTML={{ __html: n.message.replace(/(worker-node-\d+|job_[a-z0-9]+)/, '<strong>$1</strong>') }}></p>
+                  <p className="text-xs text-gray-500 mt-1">{n.time}</p>
+                </div>
+              ))
+            )}
+            {notifications.length > 0 && (
+              <div className="p-2 border-t border-gray-100 text-center">
+                <button onClick={markAllRead} className="text-xs text-indigo-600 font-medium hover:underline focus:outline-none">Mark all as read</button>
+              </div>
+            )}
           </div>
         )}
       </div>
