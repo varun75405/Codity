@@ -1,4 +1,4 @@
-import { Activity, Server, Clock, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Activity, Server, Clock, AlertTriangle, ShieldCheck, List } from 'lucide-react';
 
 const workers = [
   { id: 'wrk_8a9b2c', hostname: 'ip-10-0-1-14.ec2', status: 'Active', cpu: '42%', mem: '1.2GB', lastSeen: 'Just now', jobs: 4 },

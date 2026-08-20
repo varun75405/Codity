@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Search, Filter, CheckCircle2, Clock, PlayCircle, XCircle,
   RotateCcw, ChevronLeft, ChevronRight, Eye, MoreHorizontal
@@ -91,8 +91,8 @@ export default function Jobs() {
               const cfg = statusConfig[j.status];
               const Icon = cfg.icon;
               return (
-                <>
-                  <tr key={j.id} className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setExpandedJob(expandedJob === j.id ? null : j.id)}>
+                <React.Fragment key={j.id}>
+                  <tr className="hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => setExpandedJob(expandedJob === j.id ? null : j.id)}>
                     <td className="px-6 py-3.5 font-mono text-sm text-indigo-600 font-medium">{j.id}</td>
                     <td className="px-6 py-3.5 text-sm text-gray-800">{j.type}</td>
                     <td className="px-6 py-3.5"><span className="text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md font-medium">{j.queue}</span></td>
@@ -128,7 +128,7 @@ export default function Jobs() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               );
             })}
           </tbody>
