@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text, JSON, Index
+from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text, JSON, Index, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from .base import Base
@@ -20,6 +20,7 @@ class User(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey('organizations.id'), nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    role = Column(String, default="user", nullable=False)
     
     organization = relationship('Organization', back_populates='users')
 
@@ -64,7 +65,14 @@ class Job(Base):
     status = Column(String, nullable=False, default='Queued') # 'Queued', 'Scheduled', 'Claimed', 'Running', 'Completed', 'Failed'
     attempts = Column(Integer, default=0)
     run_at = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    max_retries = Column(Integer, default=3)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Bonus: Workflow Dependencies
+    parent_job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=True)
+    
+    # Bonus: Queue Sharding
+    shard_key = Column(String, index=True, default="default_shard")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     queue = relationship('Queue', back_populates='jobs')
@@ -115,6 +123,7 @@ class DLQEntry(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id = Column(UUID(as_uuid=True), ForeignKey('jobs.id'), nullable=False)
     error_reason = Column(Text, nullable=False)
+    ai_failure_summary = Column(Text, nullable=True) # Bonus: AI-generated failure summaries
     moved_at = Column(DateTime, default=datetime.utcnow)
     
     job = relationship('Job')

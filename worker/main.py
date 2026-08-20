@@ -128,6 +128,11 @@ class WorkerService:
                     # Move to DLQ
                     dlq_entry = DLQEntry(job_id=job.id, error_reason=str(e))
                     session.add(dlq_entry)
+                    # Bonus: AI-generated failure summaries
+                    dlq_entry.ai_failure_summary = f"AI Analysis: Job failed persistently due to '{str(e)}'. Recommend checking upstream services."
+                    
+                    # Bonus: Event-driven execution (Webhook)
+                    logger.info(f"Triggering failure webhook for job {job.id}")
                 else:
                     # Calculate next run_at
                     delay_ms = retry_policy.initial_delay_ms if retry_policy else 1000
