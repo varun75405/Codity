@@ -77,8 +77,10 @@ export function Sidebar() {
 }
 
 export function TopBar() {
+  const [showNotifications, setShowNotifications] = useState(false);
+
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 relative">
       <div className="flex items-center gap-3">
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -92,10 +94,30 @@ export function TopBar() {
       <div className="flex items-center gap-4">
         <span className="text-xs text-gray-400">Environment</span>
         <span className="px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">Production</span>
-        <button className="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+        <button 
+          onClick={() => setShowNotifications(!showNotifications)}
+          className="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 focus:outline-none"
+        >
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
         </button>
+        
+        {showNotifications && (
+          <div className="absolute top-14 right-6 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+            <div className="p-3 border-b border-gray-100 font-semibold text-sm">Alerts & Notifications</div>
+            <div className="p-3 hover:bg-gray-50 border-b border-gray-50 cursor-pointer">
+              <p className="text-sm text-gray-800"><strong>worker-node-3</strong> missed heartbeat</p>
+              <p className="text-xs text-gray-500 mt-1">2 mins ago</p>
+            </div>
+            <div className="p-3 hover:bg-gray-50 cursor-pointer">
+              <p className="text-sm text-gray-800"><strong>job_5a2b8d</strong> moved to DLQ</p>
+              <p className="text-xs text-gray-500 mt-1">15 mins ago</p>
+            </div>
+            <div className="p-2 border-t border-gray-100 text-center">
+              <button className="text-xs text-indigo-600 font-medium hover:underline">Mark all as read</button>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );
