@@ -15,32 +15,61 @@ The platform is separated into distinct, scalable domains communicating through 
 
 ```mermaid
 graph TD
-    subgraph Frontend
-        A[React / Vite Dashboard]
+    subgraph Frontend["Frontend Layer"]
+        UI[React / Vite Dashboard]
     end
 
-    subgraph Backend APIs
-        B[FastAPI REST API]
-        C[WebSocket Server]
+    subgraph Backend["API Layer (FastAPI)"]
+        API[REST API /jobs, /queues]
+        Auth[JWT Authentication & RBAC]
+        WS[WebSocket Server /ws/jobs]
     end
 
-    subgraph Workers
-        D[Worker Node 1]
-        E[Worker Node 2]
-        F[Cron / Batch Dispatcher]
+    subgraph Execution["Worker Pool (worker/main.py)"]
+        W1[Worker Node 1]
+        W2[Worker Node 2]
+        Dispatcher[Cron / Batch Dispatcher]
     end
 
-    subgraph Database Layer
-        G[(PostgreSQL DB)]
+    subgraph Database["Storage Layer (PostgreSQL)"]
+        DB[(PostgreSQL Database)]
+        Q_Table[Queues & Jobs Tables]
+        DLQ_Table[Dead Letter Queue entries]
     end
 
-    A -- REST HTTP --> B
-    A -- WebSocket --> C
-    B -- Read/Write --> G
-    C -- Stream Logs --> G
-    D -- SELECT SKIP LOCKED --> G
-    E -- SELECT SKIP LOCKED --> G
-    F -- Enqueue Recurring --> G
+    %% Frontend to Backend Connections
+    UI -- HTTP Requests --> API
+    UI -- Auth Token --> Auth
+    UI -- Live Updates --> WS
+
+    %% Backend to Database Connections
+    API -- Read/Write --> DB
+    Auth -- Verify Credentials --> DB
+    WS -. Subscribes to Events .- DB
+
+    %% Worker Operations
+    W1 -- "1. Claim Job (SELECT ... FOR UPDATE SKIP LOCKED)" --> Q_Table
+    W1 -- "2. Heartbeat (Update last_seen)" --> DB
+    W1 -- "3. Execute Job" --> W1
+    W1 -- "4a. Success or Retry" --> Q_Table
+    W1 -- "4b. Max Retries Exceeded" --> DLQ_Table
+
+    W2 -- "Claim & Execute" --> Q_Table
+    
+    Dispatcher -- "Evaluate Cron & Enqueue Jobs" --> Q_Table
+
+    DB --- Q_Table
+    DB --- DLQ_Table
+
+    classDef frontend fill:#61dafb,stroke:#333,stroke-width:2px,color:#000;
+    classDef backend fill:#009688,stroke:#333,stroke-width:2px,color:#fff;
+    classDef db fill:#336791,stroke:#333,stroke-width:2px,color:#fff;
+    classDef worker fill:#ff9800,stroke:#333,stroke-width:2px,color:#fff;
+
+    class UI frontend;
+    class API,Auth,WS backend;
+    class DB,Q_Table,DLQ_Table db;
+    class W1,W2,Dispatcher worker;
 ```
 
 ---
@@ -50,16 +79,113 @@ The schema is highly normalized, featuring strict foreign keys, lifecycle execut
 
 ```mermaid
 erDiagram
-    Organization ||--o{ User : contains
-    Organization ||--o{ Project : owns
-    Project ||--o{ Queue : has
-    Queue ||--o{ Job : contains
-    Queue ||--o{ RecurringJob : schedules
-    Job ||--o{ JobExecution : has_history
-    JobExecution ||--o{ JobLog : generates
-    Worker ||--o{ JobExecution : executes
-    Job ||--o| DLQEntry : moves_to
+    organizations ||--o{ users : "contains"
+    organizations ||--o{ projects : "owns"
+    projects ||--o{ queues : "has"
+    retry_policies |o--o{ queues : "default_for"
+    queues ||--o{ jobs : "contains"
+    retry_policies |o--o{ jobs : "applies_to"
+    queues ||--o{ recurring_jobs : "schedules"
+    jobs |o--o{ jobs : "parent_of (Workflow)"
+    jobs ||--o{ job_executions : "has_history"
+    job_executions ||--o{ job_logs : "generates"
+    workers ||--o{ job_executions : "executes"
+    jobs ||--o| dlq_entries : "moves_to"
+
+    organizations {
+        UUID id PK
+        String name
+        DateTime created_at
+    }
+    users {
+        UUID id PK
+        UUID organization_id FK
+        String email UK
+        String password_hash
+        String role
+    }
+    projects {
+        UUID id PK
+        UUID organization_id FK
+        String name
+    }
+    retry_policies {
+        UUID id PK
+        String name
+        String strategy "fixed, linear, exponential"
+        Integer max_retries
+        Integer initial_delay_ms
+        Integer max_delay_ms
+    }
+    queues {
+        UUID id PK
+        UUID project_id FK
+        UUID default_retry_policy_id FK
+        String name
+        Integer priority
+        Integer concurrency_limit
+        Boolean is_paused
+    }
+    jobs {
+        UUID id PK
+        UUID queue_id FK
+        UUID retry_policy_id FK
+        UUID parent_job_id FK
+        String type
+        JSONB payload
+        String status "Queued, Claimed, Running, Completed, Failed"
+        Integer attempts
+        DateTime run_at
+        Integer max_retries
+        Integer priority
+        String shard_key
+        DateTime created_at
+        DateTime updated_at
+    }
+    job_executions {
+        UUID id PK
+        UUID job_id FK
+        UUID worker_id FK
+        String status "Running, Completed, Failed"
+        DateTime started_at
+        DateTime completed_at
+        Text error_reason
+    }
+    job_logs {
+        UUID id PK
+        UUID job_execution_id FK
+        String level
+        Text message
+        DateTime timestamp
+    }
+    workers {
+        UUID id PK
+        String hostname
+        String status "Active, ShuttingDown, Offline"
+        DateTime last_seen "heartbeat tracking"
+    }
+    dlq_entries {
+        UUID id PK
+        UUID job_id FK
+        Text error_reason
+        Text ai_failure_summary
+        DateTime moved_at
+    }
+    recurring_jobs {
+        UUID id PK
+        UUID queue_id FK
+        String type
+        JSONB payload
+        String cron_expression
+        DateTime last_scheduled_at
+        Boolean is_paused
+    }
 ```
+
+### 3.1 Indexes & Performance
+*   **Job Claiming Index:** `ix_jobs_claim` on `jobs (status, run_at, priority)` enables `SKIP LOCKED` to claim ready jobs without full table scans.
+*   **Sharding Index:** Index on `jobs (shard_key)` allows horizontal partitioning.
+*   **User Lookups:** Unique index on `users (email)` guarantees fast authentication resolution.
 
 ---
 
